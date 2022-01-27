@@ -1,0 +1,111 @@
+"""Scarpy Antiban Spider Middleware"""
+
+import logging
+
+from scrapy.http import Request
+from twisted.internet import reactor
+from twisted.internet.error import AlreadyCalled, AlreadyCancelled
+
+logger = logging.getLogger(__name__)
+META_THROTTLE_KEY = "pre_request_banned"
+DELAY_TIME_START = 60
+MIN_TIME = 0.1
+INCREASE_RATIO = 1.5
+
+
+class ThrottleMiddleware:
+    def __init__(self, crawler, verbose=True):
+        self.crawler = crawler
+        self.verbose = verbose
+        self.engine_resume_task = None
+        self.engine_pause_time = DELAY_TIME_START
+        self.new_engine_pause_time = DELAY_TIME_START
+        self.banned_num = 0
+        self.successed_num = 0
+        self.slots_delay = {}
+
+    def engine_status_reset(self):
+        """reset counter"""
+        self.banned_num = 0
+        self.successed_num = 0
+
+    @classmethod
+    def from_crawler(cls, crawler):
+        settings = crawler.settings
+        verbose = settings.getbool("THROTTLE_VERBOSESTATUS", True)
+        return cls(crawler, verbose)
+
+    def _get_slot(self, request, spider):
+        key = request.meta.get("download_slot")
+        return self.crawler.engine.downloader.slots.get(key)
+
+    def engine_pause(self):
+
+        resume_need_created = True
+        if self.engine_resume_task and self.engine_resume_task.active():
+            try:
+                self.engine_resume_task.reset(self.engine_pause_time)
+                resume_need_created = False
+                logger.warning(
+                    "engine pause timer reset to %s seconds",
+                    self.engine_pause_time,
+                )
+            except (AlreadyCancelled, AlreadyCalled):
+                pass
+
+        if resume_need_created:
+            # create new one
+            logger.warning(
+                "create a new engine pause task for %s seconds",
+                self.engine_pause_time,
+            )
+            self.crawler.engine.pause()
+            self.engine_resume_task = reactor.callLater(
+                self.engine_pause_time, self.engine_resume
+            )
+
+    def engine_resume(self):
+        logger.warning(
+            "engine resumed after stopped %s seconds", self.engine_pause_time
+        )
+        self.crawler.engine.unpause()
+        self.engine_status_reset()
+        self.engine_pause_time = self.new_engine_pause_time
+        for slot, newdelay in self.slots_delay.items():
+            slot.delay = newdelay
+            logger.warning("increase slot delay: %s", slot)
+        self.slots_delay = {}
+
+    def engine_delay_increase(self):
+        self.new_engine_pause_time = int(
+            max(MIN_TIME, self.engine_pause_time) * INCREASE_RATIO
+        )
+
+    def download_delay_increase(self, request, spider):
+        slot = self._get_slot(request, spider)
+        if not slot:
+            return
+        self.slots_delay[slot] = int(max(MIN_TIME, slot.delay) * INCREASE_RATIO)
+
+    def process_spider_output(self, response, result, spider):
+        def _filter(request):
+            if isinstance(request, Request):
+                is_banned = request.meta.get(META_THROTTLE_KEY, None)
+                if not is_banned:
+                    # update status
+                    self.successed_num += 1
+                    if self.banned_num > 0:
+                        self.download_delay_increase(request, spider)
+                else:
+                    self.banned_num += 1
+                    # The first banned request after engine stopped
+                    if self.banned_num == 1 and self.successed_num == 0:
+                        # increase engine stop duration
+                        self.engine_delay_increase()
+                    # banned, stop the engine
+                    self.engine_pause()
+
+            # return true always
+            return True
+
+        return (r for r in result or () if _filter(r))
