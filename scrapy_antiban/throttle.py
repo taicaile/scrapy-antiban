@@ -21,7 +21,6 @@ class ThrottleMiddleware:
         self.verbose = verbose
         self.engine_resume_task = None
         self.engine_pause_time = DELAY_TIME_START
-        self.engine_delay_inc_flag = True
         self.banned_num = 0
         self.successed_num = 0
         self.slots_delay = {}
@@ -30,7 +29,6 @@ class ThrottleMiddleware:
         """reset counter"""
         self.banned_num = 0
         self.successed_num = 0
-        self.engine_delay_inc_flag = True
 
     @classmethod
     def from_crawler(cls, crawler):
@@ -44,6 +42,11 @@ class ThrottleMiddleware:
 
     def engine_pause(self):
         """pause engine"""
+        # if the first request after engine pause is still banned,
+        # the engine pause time needs to be increased.
+        if self.successed_num == 0 and self.banned_num == 1:
+            self.engine_pause_time = int(self.engine_pause_time * INCREASE_RATIO)
+
         resume_need_created = True
         if self.engine_resume_task and self.engine_resume_task.active():
             try:
@@ -72,12 +75,12 @@ class ThrottleMiddleware:
         for slot, newdelay in self.slots_delay.items():
             slot.delay = newdelay
             logger.warning("increase slot delay: %s", slot)
+        # engine resume
         self.crawler.engine.unpause()
         logger.warning(
             "engine resumed after stopped %s seconds", self.engine_pause_time
         )
-        if self.engine_delay_inc_flag:
-            self.engine_pause_time = int(self.engine_pause_time * INCREASE_RATIO)
+        # reset status
         self.engine_status_reset()
         self.slots_delay = {}
 
@@ -98,8 +101,6 @@ class ThrottleMiddleware:
                 is_banned = request.meta.get(META_THROTTLE_KEY, None)
                 if not is_banned:
                     self.successed_num += 1
-                    # if any valid request was done, the engine pause time is enough
-                    self.engine_delay_inc_flag = False
                 else:
                     self.banned_num += 1
                     # banned, stop the engine
