@@ -90,7 +90,7 @@ class ThrottleMiddleware:
         if not slot:
             logger.error("no slot found for current request: %s", request)
             return
-        self.slots_delay[slot] = int(max(MIN_TIME, slot.delay) * INCREASE_RATIO)
+        self.slots_delay[slot] = max(MIN_TIME, slot.delay) * INCREASE_RATIO
 
     def process_spider_output(self, response, result, spider):
         """process_spider_output"""
