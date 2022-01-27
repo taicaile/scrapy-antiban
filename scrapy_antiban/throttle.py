@@ -14,12 +14,14 @@ INCREASE_RATIO = 1.5
 
 
 class ThrottleMiddleware:
+    """Throttle control middleware"""
+
     def __init__(self, crawler, verbose=True):
         self.crawler = crawler
         self.verbose = verbose
         self.engine_resume_task = None
         self.engine_pause_time = DELAY_TIME_START
-        self.new_engine_pause_time = DELAY_TIME_START
+        self.engine_delay_inc_flag = True
         self.banned_num = 0
         self.successed_num = 0
         self.slots_delay = {}
@@ -28,6 +30,7 @@ class ThrottleMiddleware:
         """reset counter"""
         self.banned_num = 0
         self.successed_num = 0
+        self.engine_delay_inc_flag = True
 
     @classmethod
     def from_crawler(cls, crawler):
@@ -35,12 +38,12 @@ class ThrottleMiddleware:
         verbose = settings.getbool("THROTTLE_VERBOSESTATUS", True)
         return cls(crawler, verbose)
 
-    def _get_slot(self, request, spider):
+    def _get_slot(self, request):
         key = request.meta.get("download_slot")
         return self.crawler.engine.downloader.slots.get(key)
 
     def engine_pause(self):
-
+        """pause engine"""
         resume_need_created = True
         if self.engine_resume_task and self.engine_resume_task.active():
             try:
@@ -65,45 +68,46 @@ class ThrottleMiddleware:
             )
 
     def engine_resume(self):
-        logger.warning(
-            "engine resumed after stopped %s seconds", self.engine_pause_time
-        )
-        self.crawler.engine.unpause()
-        self.engine_status_reset()
-        self.engine_pause_time = self.new_engine_pause_time
+        """engine resume"""
         for slot, newdelay in self.slots_delay.items():
             slot.delay = newdelay
             logger.warning("increase slot delay: %s", slot)
+        self.crawler.engine.unpause()
+        logger.warning(
+            "engine resumed after stopped %s seconds", self.engine_pause_time
+        )
+        if self.engine_delay_inc_flag:
+            self.engine_pause_time = int(self.engine_pause_time * INCREASE_RATIO)
+        self.engine_status_reset()
         self.slots_delay = {}
 
-    def engine_delay_increase(self):
-        self.new_engine_pause_time = int(
-            max(MIN_TIME, self.engine_pause_time) * INCREASE_RATIO
-        )
-
-    def download_delay_increase(self, request, spider):
-        slot = self._get_slot(request, spider)
+    def slot_delay_inc_once(self, request):
+        """increase slot delay time"""
+        slot = self._get_slot(request)
         if not slot:
             return
         self.slots_delay[slot] = int(max(MIN_TIME, slot.delay) * INCREASE_RATIO)
 
     def process_spider_output(self, response, result, spider):
+        """process_spider_output"""
+
+        del response, spider
+
         def _filter(request):
             if isinstance(request, Request):
                 is_banned = request.meta.get(META_THROTTLE_KEY, None)
                 if not is_banned:
-                    # update status
                     self.successed_num += 1
-                    if self.banned_num > 0:
-                        self.download_delay_increase(request, spider)
+                    # if any valid request was done, the engine pause time is enough
+                    self.engine_delay_inc_flag = False
                 else:
                     self.banned_num += 1
-                    # The first banned request after engine stopped
-                    if self.banned_num == 1 and self.successed_num == 0:
-                        # increase engine stop duration
-                        self.engine_delay_increase()
                     # banned, stop the engine
                     self.engine_pause()
+                # if there are both successed and failed request,
+                # the slot delay time needs to be increased.
+                if self.successed_num > 0 and self.banned_num > 0:
+                    self.slot_delay_inc_once(request)
 
             # return true always
             return True

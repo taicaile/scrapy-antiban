@@ -11,7 +11,8 @@
 # --disable=W"
 disable=fixme,
         too-few-public-methods,
-        too-many-arguments
+        too-many-arguments,
+        too-many-instance-attributes
 
 [BASIC]
 
@@ -64,6 +65,7 @@ docstring-min-length=10
 # expressions are accepted.
 generated-members=
 
+ignored-classes=twisted.internet.reactor
 
 [FORMAT]
 
