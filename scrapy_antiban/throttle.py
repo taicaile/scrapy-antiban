@@ -88,9 +88,10 @@ class ThrottleMiddleware:
         """increase slot delay time"""
         slot = self._get_slot(request)
         if not slot:
-            logger.error("no slot found for current request: %s", request)
+            logger.warning("no slot found for current request: %s", request)
             return
         self.slots_delay[slot] = max(MIN_TIME, slot.delay) * INCREASE_RATIO
+        logger.warning("update slot: %s", slot)
 
     def process_spider_output(self, response, result, spider):
         """process_spider_output"""
