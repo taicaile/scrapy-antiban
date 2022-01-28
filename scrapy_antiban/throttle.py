@@ -29,6 +29,7 @@ class ThrottleMiddleware:
         """reset counter"""
         self.banned_num = 0
         self.successed_num = 0
+        self.slots_updated = {}
 
     @classmethod
     def from_crawler(cls, crawler):
@@ -74,8 +75,6 @@ class ThrottleMiddleware:
         """engine resume"""
         # reset status
         self.engine_status_reset()
-        self.slots_updated = {}
-
         # engine resume
         self.crawler.engine.unpause()
         logger.warning(
