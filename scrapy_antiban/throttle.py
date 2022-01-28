@@ -38,7 +38,7 @@ class ThrottleMiddleware:
 
     def _get_slot(self, request):
         key = request.meta.get("download_slot")
-        return self.crawler.engine.downloader.slots.get(key)
+        return key, self.crawler.engine.downloader.slots.get(key)
 
     def engine_pause(self):
         """pause engine"""
@@ -72,7 +72,8 @@ class ThrottleMiddleware:
 
     def engine_resume(self):
         """engine resume"""
-        for slot, newdelay in self.slots_delay.items():
+        for key, newdelay in self.slots_delay.items():
+            slot = self.crawler.engine.downloader.slots.get(key)
             slot.delay = newdelay
             logger.warning("increase slot delay: %s", slot)
         # engine resume
@@ -86,12 +87,12 @@ class ThrottleMiddleware:
 
     def slot_delay_inc_once(self, request):
         """increase slot delay time"""
-        slot = self._get_slot(request)
-        if not slot:
+        key, slot = self._get_slot(request)
+        if not key or not slot:
             logger.warning("no slot found for current request: %s", request)
             return
-        self.slots_delay[slot] = max(MIN_TIME, slot.delay) * INCREASE_RATIO
-        logger.warning("update slot: %s", slot)
+        self.slots_delay[key] = max(MIN_TIME, slot.delay) * INCREASE_RATIO
+        logger.warning("update slot: %s key, to %s", key, self.slots_delay[key])
 
     def process_spider_output(self, response, result, spider):
         """process_spider_output"""
