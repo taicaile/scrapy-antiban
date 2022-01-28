@@ -46,6 +46,7 @@ class ThrottleMiddleware:
         self.banned_num = 0
         self.successed_num = 0
         self.slots_updated = {}
+        self.engine_resume_task = None
 
     @classmethod
     def from_crawler(cls, crawler):
@@ -124,6 +125,7 @@ class ThrottleMiddleware:
                     self.banned_num += 1
                     # banned, stop the engine
                     self.engine_pause()
+                logger.info("%s,%s", self.successed_num, self.banned_num)
                 # if there are both successed and failed request,
                 # the slot delay time needs to be increased.
                 if self.successed_num > 0 and self.banned_num > 0:
