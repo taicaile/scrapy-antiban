@@ -58,7 +58,7 @@ class ThrottleMiddleware:
     def get_slotstate(self, request) -> "SlotState":
         key = self._get_slot_key(request)
         if key not in self.slotstates:
-            slot = self._get_slot_key(key)
+            slot = self._get_slot(key)
             self.slotstates[key] = SlotState(key, slot)
         return self.slotstates[key]
 
@@ -70,7 +70,7 @@ class ThrottleMiddleware:
 
     def _get_slot_key(self, request):
         # pylint: disable=protected-access
-        return self.crawler.engine.downloader._get_slot_key(request)
+        return self.crawler.engine.downloader._get_slot_key(request, None)
 
     def _get_slot(self, key):
         # pylint: disable=protected-access
