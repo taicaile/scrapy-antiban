@@ -74,6 +74,9 @@ class ThrottleMiddleware:
         """engine resume"""
         for key, newdelay in self.slots_delay.items():
             slot = self.crawler.engine.downloader.slots.get(key)
+            if not slot:
+                logger.warning("no slot found for key: %s", key)
+                return
             slot.delay = newdelay
             logger.warning("increase slot delay: %s", slot)
 
@@ -91,7 +94,7 @@ class ThrottleMiddleware:
         """increase slot delay time"""
         key, slot = self._get_slot(request)
         if not key or not slot:
-            logger.warning("no slot found for current request: %s", request)
+            logger.warning("no key or slot found for current request: %s", request)
             return
         self.slots_delay[key] = max(MIN_TIME, slot.delay) * INCREASE_RATIO
         logger.warning("update slot: %s key, to %s", key, self.slots_delay[key])
