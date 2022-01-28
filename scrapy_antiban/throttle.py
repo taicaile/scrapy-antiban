@@ -1,6 +1,7 @@
 """Scarpy Antiban Spider Middleware"""
 
 import logging
+from dataclasses import dataclass
 
 from scrapy.http import Request
 from twisted.internet import reactor
@@ -11,6 +12,21 @@ META_THROTTLE_KEY = "pre_request_banned"
 DELAY_TIME_START = 60
 MIN_TIME = 0.1
 INCREASE_RATIO = 1.5
+
+
+@dataclass
+class SlotStatus:
+    downloader_slot_key: str
+    banned_num: int = 0
+    successed_num: int = 0
+
+
+@dataclass
+class EngineStatus:
+    banned_num: int = 0
+    successed_num: int = 0
+    resume_task = None
+    pause_time = DELAY_TIME_START
 
 
 class ThrottleMiddleware:
