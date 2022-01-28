@@ -1,5 +1,5 @@
 """Scarpy Antiban Spider Middleware"""
-
+import copy
 import logging
 from dataclasses import dataclass
 
@@ -107,9 +107,11 @@ class ThrottleMiddleware:
             logger.warning("no key or slot found, key:%s, slot:%s", key, slot)
             return
         if not self.slots_updated.get(key, False):
+            oldslot = copy.deepcopy(slot)
+            slot.lastseen += self.engine_pause_time
             slot.delay = max(MIN_TIME, slot.delay) * INCREASE_RATIO
             self.slots_updated[key] = True
-            logger.warning("update slot: %s, to %s", key, slot)
+            logger.warning("update slot: %s, to %s", oldslot, slot)
 
     def process_spider_output(self, response, result, spider):
         """process_spider_output"""
@@ -124,7 +126,7 @@ class ThrottleMiddleware:
                 else:
                     self.banned_num += 1
                     # banned, stop the engine
-                    self.engine_pause()
+                    # self.engine_pause()
                 logger.info("%s,%s", self.successed_num, self.banned_num)
                 # if there are both successed and failed request,
                 # the slot delay time needs to be increased.
