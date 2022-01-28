@@ -100,6 +100,14 @@ class ThrottleMiddleware:
             "engine resumed after stopped %s seconds", self.engine_pause_time
         )
 
+    def slot_delay_clear(self):
+        self.banned_num = 0
+        self.successed_num = 0
+        self.slots_updated = {}
+        logger.warning(
+            "engine resumed after stopped %s seconds", self.engine_pause_time
+        )
+
     def slot_delay_inc_once(self, request):
         """increase slot delay time"""
         key, slot = self._get_slot(request)
