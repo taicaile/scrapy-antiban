@@ -38,7 +38,9 @@ class ThrottleMiddleware:
         return cls(crawler, verbose)
 
     def _get_slot(self, request):
-        key = request.meta.get("download_slot")
+        # pylint: disable=protected-access
+        # key = request.meta.get("download_slot")
+        key = self.crawler.engine.downloader._get_slot_key(request, None)
         return key, self.crawler.engine.downloader.slots.get(key)
 
     def engine_pause(self):
