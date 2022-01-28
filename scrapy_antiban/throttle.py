@@ -26,20 +26,27 @@ class SlotState:
         self.is_paused = False
 
     def slot_pause_once(self):
+        """slot pause"""
         if self.successed_num == 0 and self.banned_num == 1:
             self.pause_time = int(self.pause_time * INCREASE_RATIO)
-
+            logger.warning(
+                "slot: %s pause time increaase to %s", self.key, self.pause_time
+            )
         if not self.is_paused:
             self.slot.lastseen += self.pause_time
             reactor.callLater(self.pause_time, self.reset)
             self.is_paused = True
+            logger.warning("lastseen added %s seconds", self.pause_time)
 
     def slot_delay_inc_once(self):
+        """slot delay increase"""
         if not self.is_delayed:
             self.slot.delay = max(MIN_TIME, self.slot.delay) * INCREASE_RATIO
             self.is_delayed = True
+            logger.warning("slot: %s delay increase to %s", self.key, self.slot.delay)
 
     def reset(self):
+        """reset"""
         self.banned_num = 0
         self.successed_num = 0
         self.is_paused = False
@@ -95,7 +102,6 @@ class ThrottleMiddleware:
                 else:
                     slotstate.banned_num += 1
                     slotstate.slot_pause_once()
-                logger.info("%s,%s", slotstate.successed_num, slotstate.banned_num)
                 # if there are both successed and failed request,
                 # the slot delay time needs to be increased.
                 if slotstate.successed_num > 0 and slotstate.banned_num > 0:
