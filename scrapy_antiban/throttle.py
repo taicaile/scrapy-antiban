@@ -1,5 +1,4 @@
 """Scarpy Antiban Spider Middleware"""
-import copy
 import logging
 from dataclasses import dataclass
 
@@ -115,7 +114,7 @@ class ThrottleMiddleware:
             logger.warning("no key or slot found, key:%s, slot:%s", key, slot)
             return
         if not self.slots_updated.get(key, False):
-            oldslot = copy.deepcopy(slot)
+            oldslot = str(slot)
             slot.lastseen += self.engine_pause_time
             slot.delay = max(MIN_TIME, slot.delay) * INCREASE_RATIO
             self.slots_updated[key] = True
