@@ -21,13 +21,14 @@ class SlotState:
         self.slot = slot
         self.banned_num = 0
         self.successed_num = 0
-
         self.is_delayed = False
-
         self.pause_time = DELAY_TIME_START
         self.is_paused = False
 
     def slot_pause_once(self):
+        if self.successed_num == 0 and self.banned_num == 1:
+            self.pause_time = int(self.pause_time * INCREASE_RATIO)
+
         if not self.is_paused:
             self.slot.lastseen += self.pause_time
             reactor.callLater(self.pause_time, self.reset)
