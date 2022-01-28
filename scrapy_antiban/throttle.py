@@ -32,14 +32,18 @@ class SlotState:
         if not self.is_paused:
             self.slot.lastseen += self.pause_time
             reactor.callLater(self.pause_time, self.reset)
+            self.is_paused = True
 
     def slot_delay_inc_once(self):
         if not self.is_delayed:
             self.slot.delay = max(MIN_TIME, self.slot.delay) * INCREASE_RATIO
+            self.is_delayed = True
 
     def reset(self):
         self.banned_num = 0
         self.successed_num = 0
+        self.is_paused = False
+        self.is_delayed = False
         logger.warning("slotstate: %s reset", self)
 
     def __repr__(self) -> str:
