@@ -85,7 +85,7 @@ class ThrottleMiddleware:
         """increase slot delay time"""
         key, slot = self._get_slot(request)
         if not key or not slot:
-            logger.warning("no key or slot found for current request: %s", request)
+            logger.warning("no key or slot found, key:%s, slot:%s", key, slot)
             return
         if not self.slots_updated.get(key, False):
             slot.delay = max(MIN_TIME, slot.delay) * INCREASE_RATIO
