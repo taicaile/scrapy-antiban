@@ -76,14 +76,16 @@ class ThrottleMiddleware:
             slot = self.crawler.engine.downloader.slots.get(key)
             slot.delay = newdelay
             logger.warning("increase slot delay: %s", slot)
+
+        # reset status
+        self.engine_status_reset()
+        self.slots_delay = {}
+
         # engine resume
         self.crawler.engine.unpause()
         logger.warning(
             "engine resumed after stopped %s seconds", self.engine_pause_time
         )
-        # reset status
-        self.engine_status_reset()
-        self.slots_delay = {}
 
     def slot_delay_inc_once(self, request):
         """increase slot delay time"""
